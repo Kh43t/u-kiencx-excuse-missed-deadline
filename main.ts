@@ -6,7 +6,7 @@
 // /output/entry.txt, and refuses to write anything that would fail the gate
 // (not UTF-8-safe, empty, more than one line, or over 160 characters).
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const EXCUSE =
@@ -27,6 +27,7 @@ if (EXCUSE.length > MAX_CHARS) {
 if (EXCUSE.trim().length === 0) fail("line is only whitespace");
 if (EXCUSE !== EXCUSE.trim()) fail("line has leading or trailing whitespace");
 if (/[\r\n]/.test(EXCUSE)) fail("line contains a line break");
+if (/\t/.test(EXCUSE)) fail("line contains a tab");
 if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(EXCUSE)) {
   fail("line contains control characters");
 }
@@ -35,5 +36,10 @@ const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 const outputPath = join(outputDir, "entry.txt");
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, EXCUSE, "utf8");
+
+// Read-back check: the file on disk must be byte-identical to the line.
+if (readFileSync(outputPath, "utf8") !== EXCUSE) {
+  fail("written output does not match the line");
+}
 
 console.log(`wrote ${EXCUSE.length} characters to ${outputPath}`);
